@@ -1,0 +1,96 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Criar o caminho dos dados do dash - Arquivo csv da lojinha (WIX)
+tabela_lojinha = pd.read_csv(r"C:\Users\Beep Saude.BEEP1441\OneDrive\Documentos\Sales\Dash\Lojinha\Itens_comprados.csv")
+
+# Calcular a coluna 'Total' como o produto de 'Quant.' e 'Preço'
+tabela_lojinha['Total'] = tabela_lojinha['Quant.'] * tabela_lojinha['Preço']
+
+# Converter a coluna 'Data de criação' para datetime
+tabela_lojinha['Data de criação'] = pd.to_datetime(tabela_lojinha['Data de criação'])
+
+# Filtrar os dados para o ano de 2024
+tabela_2024 = tabela_lojinha[tabela_lojinha['Data de criação'].dt.year == 2024]
+
+# Gráfico de Barras de Vendas por mês do ano de 2024
+vendas_por_mes = tabela_2024.groupby(tabela_2024['Data de criação'].dt.to_period('M'))['Número do pedido'].nunique()
+
+# Gráfico de Linhas do Total de Vendas por mês do ano de 2024
+total_vendas_por_mes = tabela_2024.groupby(tabela_2024['Data de criação'].dt.to_period('M'))['Total'].sum()
+
+# Filtrar os pedidos por status em 2024
+pedidos_atendidos = tabela_2024[tabela_2024['Status do pedido'] == 'Atendido']['Número do pedido'].count()
+pedidos_nao_atendidos = tabela_2024[tabela_2024['Status do pedido'] == 'Não atendido']['Número do pedido'].count()
+pedidos_cancelados = tabela_2024[tabela_2024['Status do pedido'] == 'Cancelado']['Número do pedido'].count()
+
+# Calcular o total de pedidos por status
+total_pedidos = pedidos_atendidos + pedidos_nao_atendidos + pedidos_cancelados
+
+# Top 10 produtos mais vendidos de 2024
+top10_produtos = tabela_2024.groupby('Item')['Quant.'].sum().nlargest(10).sort_values()
+
+# Ajustar o tamanho da figura principal
+plt.figure(figsize=(10, 8))
+
+# Criar subplots para os gráficos principais
+fig, axs = plt.subplots(2, 2, figsize=(12, 10), gridspec_kw={'hspace': 0.4, 'wspace': 0.3})
+
+# Adicionar o título principal do dashboard
+fig.suptitle('LOJINHA BEEP 2024', fontsize=22, fontweight='bold', color='#4F5E69')
+
+# Gráfico de Barras de Vendas por mês (2024)
+axs[0, 0].bar(vendas_por_mes.index.to_timestamp().strftime('%b'), vendas_por_mes, color='#00AFAA')
+axs[0, 0].set_xticks(range(len(vendas_por_mes)))
+axs[0, 0].set_xticklabels(vendas_por_mes.index.to_timestamp().strftime('%b'), rotation=45, fontsize=12)
+axs[0, 0].set_title('Vendas por mês (2024)', fontsize=14, color='#4F5E69')
+axs[0, 0].set_xlabel('Mês', fontsize=12)
+axs[0, 0].set_ylabel('Número de Vendas', fontsize=12)
+axs[0, 0].grid(True, axis='y', linestyle='--', alpha=0.7)
+
+# Adicionar rótulos de dados em cada barra
+for i, v in enumerate(vendas_por_mes):
+    axs[0, 0].text(i, v + 0.5, str(v), ha='center', fontsize=10, color='#4F5E69')
+
+# Gráfico de Linhas do Total de Vendas (2024)
+axs[0, 1].plot(total_vendas_por_mes.index.to_timestamp(), total_vendas_por_mes, marker='o', linestyle='-', color='#F36508')
+axs[0, 1].set_xticks(total_vendas_por_mes.index.to_timestamp())
+axs[0, 1].set_xticklabels(total_vendas_por_mes.index.strftime('%b'), rotation=45, fontsize=12)
+axs[0, 1].set_title('Total de Vendas por mês (2024)', fontsize=14, color='#4F5E69')
+axs[0, 1].set_xlabel('Mês', fontsize=12)
+axs[0, 1].set_ylabel('Total de Vendas (em R$)', fontsize=12)
+axs[0, 1].grid(True, linestyle='--', alpha=0.7)
+
+# Adicionar rótulos de dados em cada ponto
+for date, total in zip(total_vendas_por_mes.index.to_timestamp(), total_vendas_por_mes):
+    axs[0, 1].text(date, total, f'{total:.2f}', ha='center', va='bottom', fontsize=10, color='#4F5E69')
+
+# Gráfico de Barras Horizontais de Status dos Pedidos (2024)
+status_pedidos = ['Atendidos', 'Não Atendidos', 'Cancelados']
+quantidade_pedidos = [pedidos_atendidos, pedidos_nao_atendidos, pedidos_cancelados]
+axs[1, 0].barh(status_pedidos, quantidade_pedidos, color=['#00AFAA', '#F36508', '#FF5733'])
+axs[1, 0].set_title('Status dos Pedidos em 2024', fontsize=14, color='#4F5E69')
+axs[1, 0].set_xlabel('Número de Pedidos', fontsize=12)
+axs[1, 0].set_ylabel('Status do Pedido\nTotal de Pedidos: {}'.format(total_pedidos), fontsize=12)
+axs[1, 0].grid(True, axis='x', linestyle='--', alpha=0.7)
+
+# Adicionar rótulos de dados em cada barra horizontal
+for i, v in enumerate(quantidade_pedidos):
+    axs[1, 0].text(v + 0.5, i, str(v), ha='left', va='center', fontsize=10, color='#4F5E69')
+
+# Gráfico de Funil dos Top 10 Produtos Mais Vendidos (2024)
+axs[1, 1].barh(top10_produtos.index, top10_produtos.values, color='#4F5E69')
+axs[1, 1].set_title('Top 10 Produtos Mais Vendidos em 2024', fontsize=14, color='#4F5E69')
+axs[1, 1].set_xlabel('Quantidade Vendida', fontsize=12)
+axs[1, 1].set_ylabel('Produto', fontsize=12)
+axs[1, 1].grid(True, axis='x', linestyle='--', alpha=0.7)
+
+# Adicionar rótulos de dados em cada barra horizontal do funil
+for i, v in enumerate(top10_produtos.values):
+    axs[1, 1].text(v + 0.5, i, str(v), ha='left', va='center', fontsize=10, color='#4F5E69')
+
+# Ajustar layout para evitar sobreposição
+plt.tight_layout(rect=[0, 0, 1, 0.95])  # Ajustar espaçamento para não sobrepor o título
+
+# Mostrar os gráficos
+plt.show()
